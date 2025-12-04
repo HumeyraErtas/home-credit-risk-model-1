@@ -30,7 +30,28 @@ def load_model_and_template():
 
     # TARGET'ı at, sadece feature'lar kalsın
     feature_cols = [c for c in df_fe.columns if c != "TARGET"]
-    template_row = df_fe[feature_cols].median().to_frame().T  # 1 satır, medyan değerler
+
+    # Build a safe template row: numeric features -> median, non-numeric -> mode (most frequent)
+    numeric_cols = df_fe[feature_cols].select_dtypes(include=[np.number]).columns.tolist()
+    non_numeric_cols = [c for c in feature_cols if c not in numeric_cols]
+
+    template_values = {}
+    if numeric_cols:
+        medians = df_fe[numeric_cols].median()
+        template_values.update(medians.to_dict())
+
+    for c in non_numeric_cols:
+        # use mode (most frequent). If mode is empty (all NaN), fall back to first value or None
+        modes = df_fe[c].mode(dropna=True)
+        if not modes.empty:
+            template_values[c] = modes.iloc[0]
+        else:
+            # fallback: take first non-null value if exists, else None
+            non_nulls = df_fe[c].dropna()
+            template_values[c] = non_nulls.iloc[0] if len(non_nulls) > 0 else None
+
+    # Ensure ordering matches feature_cols and create a single-row DataFrame
+    template_row = pd.DataFrame([template_values])[feature_cols]
 
     return model, feature_cols, template_row
 
