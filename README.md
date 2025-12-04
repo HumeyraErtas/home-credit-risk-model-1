@@ -1,60 +1,136 @@
-# Home Credit Risk Model
+# 🏦 Home Credit Default Risk – Uçtan Uca Makine Öğrenmesi Projesi  
+Zero2End Machine Learning Bootcamp Final Projesi  
+---
 
-Kısa açıklama
-- Bu repo, Zero2End ML Bootcamp kapsamında hazırlanmış "Home Credit" kredi geri ödememe risk modelinin kaynak kodlarını, ön işleme ve değerlendirme notebook'larını ve basit bir Streamlit uygulamasını içerir.
+## 📌 1. Problem Tanımı
+Kredi veren finans kuruluşları, başvuru yapan bireylerin gelecekte kredi geri ödemelerinde sorun yaşayıp yaşamayacağını doğru tahmin etmek zorundadır. Yanlış olumlu kararlar (riskli müşteriye kredi vermek) finansal kayıplara yol açarken, yanlış olumsuz kararlar (risksiz müşteriyi reddetmek) müşteri memnuniyetini düşürür.
 
-İçerik (kök dizin)
-- `app/streamlit_app.py` — Tekil ve toplu tahmin için Streamlit arayüzü.
-- `data/` — Ham ve işlenmiş veri örnekleri (`data/processed/train_fe.csv` dahil).
-- `models/` — Eğitilmiş modeller (ör: `final_model.pkl`, `baseline_model.pkl`).
-- `notebooks/` — EDA, feature engineering, modelleme ve değerlendirme notebook'ları.
-- `src/` — Ön işleme, feature engineering ve eğitim script'leri.
+Bu proje, **Home Credit** veri setini kullanarak her bir başvuru için **geri ödememe (default) riskini tahmin eden** uçtan uca bir makine öğrenmesi çözümü geliştirmeyi amaçlar.
 
-Hızlı başlangıç
-
-1) Ortam kurulumu
-
-Windows PowerShell örneği (conda/venv kullanıyorsanız aktif edin):
-
-```powershell
-pip install -r requirements.txt
-# Eğer requirements.txt yoksa temel paketleri yükleyin:
-pip install streamlit pandas numpy scikit-learn joblib shap matplotlib seaborn
-```
-
-2) Streamlit uygulamasını çalıştırma
-
-Projeyi root dizininde çalıştırın:
-
-```powershell
-streamlit run app\streamlit_app.py
-```
-
-Notlar:
-- `app/streamlit_app.py` model ve FE template dosyalarını `models/final_model.pkl` ve `data/processed/train_fe.csv` yollarından yükler. Eğer farklı bir isim veya yol kullanıyorsanız dosyaları uygun şekilde yeniden adlandırın ya da `app/streamlit_app.py` içinde `model_path` ve `df_fe_path` değişkenlerini güncelleyin.
-- Uygulama, model dosyası eksikse veya `train_fe.csv` bulunamazsa hatayı açık bir mesajla gösterir.
-
-Notebook'lar
-- `notebooks/01_eda.ipynb` — Veri keşfi.
-- `notebooks/02_baseline_model.ipynb` — Baseline model.
-- `notebooks/03_feature_engineering.ipynb` — Feature engineering adımları.
-- `notebooks/04_model_optimization.ipynb` — Model seçimi ve optimizasyon.
-- `notebooks/05_final_model_evaluation.ipynb` — Final model değerlendirme, SHAP açıklamaları.
-
-SHAP ile ilgili not
-- `05_final_model_evaluation.ipynb` içinde SHAP summary plot oluştururken `explainer.shap_values` çıktısı bazen liste, bazen ndarray olabilir. Notebook'ta bu duruma dayanıklı kod bulunduğu için "Summary plots need a matrix" gibi bir hata alırsanız ilgili hücreyi güncelleyin veya hücreyi tekrar çalıştırın.
-
-Model tekrar eğitme
-- Modeli yeniden eğitmek isterseniz `src/train.py` ve ilgili notebook'ları kullanabilirsiniz. Eğitilmiş model `joblib.dump(model, 'models/final_model.pkl')` ile `models/` altında saklanmalıdır.
-
-Geliştirici notları
-- Bu repo eğitim amaçlı hazırlanmıştır. Üretim ortamına taşımadan önce veri gizliliği, model doğrulama ve performans testleri yapılmalıdır.
-
-Katkıda bulunma
-- PR'ler welcome. Küçük düzeltmeler, README geliştirmeleri ve notebook temizliği için katkı bekleniyor.
-
-Lisans
-- Bu repo içinde bir `LICENSE` dosyası bulunuyor. Lisans koşullarına uygun kullanın.
+Bu kapsamda:
+- Kapsamlı EDA yapılmış
+- Feature engineering uygulanmış
+- Optuna/RSCV ile model optimize edilmiş
+- ROC-AUC metriği ile değerlendirilmiş
+- Streamlit ile arayüz geliştirilmiştir.
 
 ---
-Eğer README'da başka bir başlık veya örnek komut isterseniz, belirtin; ben eklerim.
+
+## 📌 2. Veri Seti  
+Kullanılan veri seti Kaggle'ın **Home Credit Default Risk** yarışmasına aittir.  
+
+- **307.511 satır**, **122+ kolon**  
+- Gerçek müşteri kredi başvuru verisi  
+- Tabular format (CSV)  
+- IMBALANCED TARGET (1 sadece %8)
+
+### Hedef Değişken:
+- `TARGET = 1`: Ödeme güçlüğü riski yüksek  
+- `TARGET = 0`: Normal müşteri  
+
+---
+
+## 📌 3. Validasyon Şeması (Zorunlu Soru)
+Veri ciddi derecede dengesiz olduğu için **Stratified Train-Test Split** kullanılmıştır.
+
+- `%20 validation`
+- `stratify=TARGET`  
+- Sabit `random_state=42`
+
+---
+
+## 📌 4. Baseline Model (Zorunlu Soru)
+Minimal ön işleme + LightGBM kullanılarak elde edilen ilk skor:
+
+| Model | ROC-AUC |
+|-------|---------|
+| Baseline LightGBM | **≈ 0.75** |
+
+Bu skor feature engineering ve optimizasyonun başlangıç referansıdır.
+
+---
+
+## 📌 5. Feature Engineering (Zorunlu Soru – Detaylı)
+Feature engineering adımlarımız 4 ana grupta yapılmıştır:
+
+### **A) Core Feature Transformations**
+- `DAYS_*` kolonları pozitif değerlere dönüştürüldü  
+- `AGE` (yıl cinsinden) üretildi  
+- `LOG(AMT_INCOME)`, `LOG(AMT_CREDIT)`, `LOG(AMT_ANNUITY)` uygulandı  
+
+### **B) Financial Ratios**
+- `DEBT_INCOME_RATIO = CREDIT / INCOME`  
+- `CREDIT_ANNUITY_RATIO = CREDIT / ANNUITY`  
+- `INCOME_PER_PERSON`  
+- `PAYMENT_RATE = ANNUITY / CREDIT`  
+
+### **C) External Scores Aggregation**
+- `EXT_SOURCE_MEAN`, `EXT_SOURCE_MIN`, `EXT_SOURCE_MAX`
+
+### **D) Other Tables Aggregation (bureau, installments, previous…)**
+Projeye dahil edilirse aşağıdaki özet bilgiler üretildi:
+- Toplam gecikme günleri
+- Ortalama borç
+- Limit kullanım oranı
+- Taksit ödeme davranışı  
+(Not: Bu dosyalar bulunamazsa proje FE'si core FE üzerinden devam eder.)
+
+### 📌 FE Sonucu:
+- Başlangıç kolon sayısı: **122**
+- FE sonrası kolon sayısı: **134+**
+
+---
+
+## 📌 6. Model Optimizasyonu (Zorunlu Soru)
+RandomizedSearchCV ile LightGBM hiperparametre taraması yapılmıştır.
+
+Optimizasyon sonrası validation skorları:
+
+| Model | ROC-AUC |
+|-------|---------|
+| Baseline | ~0.75 |
+| Final LightGBM (Optimized) | **~0.80–0.82** |
+
+---
+
+## 📌 7. Final vs Baseline Farkı (Zorunlu Soru)
+Feature engineering ve optimizasyon adımları model performansını anlamlı biçimde artırmıştır:
+
+- **+0.05 – 0.07 ROC-AUC iyileşmesi**
+- EXT_SOURCE feature’ları ve finansal oranlar en çok katkı yapan feature’lar olmuştur.
+
+---
+
+## 📌 8. Business Uyumu (Zorunlu Soru)
+Model çıktısı **risk skoru** olduğundan bankanın kredi politikalarını doğrudan destekler:
+
+- Yüksek risk → kredi reddi / ek güvence talebi  
+- Orta risk → manuel inceleme  
+- Düşük risk → hızlı onay  
+
+Modelin açıklanabilirliği (feature importance + SHAP) iş tarafına güven verir.
+
+---
+
+## 📌 9. Monitoring (Zorunlu Soru)
+Model canlıya alındığında izlenecek metrikler:
+
+- **Input drift:** AGE, PAYMENT_RATE, DEBT_INCOME_RATIO dağılım değişimleri  
+- **Model drift:** Periyodik ROC-AUC kontrolü  
+- **Output drift:** Ortalama tahmin değerindeki değişimler  
+
+Drift tespit edilirse model yeniden eğitilir.
+
+---
+
+## 📌 10. Deployment – Streamlit Arayüzü
+`streamlit_app.py` kullanıcıların:
+
+- Tek bir müşteri girişi ile risk skoru görmesine  
+- FE’li CSV yükleyerek toplu tahmin almasına  
+
+imkan tanır.
+
+Komut:
+```bash
+streamlit run app/streamlit_app.py
