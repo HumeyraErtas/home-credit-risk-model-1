@@ -153,8 +153,6 @@ def predict_proba_single(row_df):
 # 3) STREAMLIT ARAYÜZÜ
 # -------------------------
 
-st.set_page_config(page_title="Home Credit Risk Model", page_icon="💳", layout="centered")
-
 st.title("💳 Home Credit Default Risk – Tahmin Uygulaması")
 st.write(
     """
