@@ -50,8 +50,13 @@ def load_model_and_template():
             non_nulls = df_fe[c].dropna()
             template_values[c] = non_nulls.iloc[0] if len(non_nulls) > 0 else None
 
-    # Ensure ordering matches feature_cols and create a single-row DataFrame
-    template_row = pd.DataFrame([template_values])[feature_cols]
+
+    # Tüm feature_cols'u garanti et, eksik kalanları None ile doldur
+    for col in feature_cols:
+        if col not in template_values:
+            template_values[col] = None
+    # Sıralamayı ve tüm kolonları koruyarak tek satırlık DataFrame oluştur
+    template_row = pd.DataFrame([[template_values[col] for col in feature_cols]], columns=feature_cols)
 
     return model, feature_cols, template_row
 
