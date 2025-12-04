@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+from pathlib import Path
 
 # -------------------------
 # 1) MODELI VE FE DATAYI YÜKLE
@@ -9,11 +10,23 @@ import joblib
 
 @st.cache_resource
 def load_model_and_template():
-    # Final modeli yükle
-    model = joblib.load("../models/final_model.pkl")
+    # Build absolute paths relative to this file so the app works
+    # regardless of the current working directory.
+    base_dir = Path(__file__).resolve().parent.parent
+
+    # Final modeli yükle (mutlak path kullan)
+    model_path = base_dir / "models" / "final_model.pkl"
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Model file not found: {model_path}.\nMake sure the file exists or update the path."
+        )
+    model = joblib.load(model_path)
 
     # FE'li dataset'i yükle (sadece medyan ve kolon bilgisi için)
-    df_fe = pd.read_csv("../data/processed/train_fe.csv")
+    df_fe_path = base_dir / "data" / "processed" / "train_fe.csv"
+    if not df_fe_path.exists():
+        raise FileNotFoundError(f"FE dataset not found: {df_fe_path}")
+    df_fe = pd.read_csv(df_fe_path)
 
     # TARGET'ı at, sadece feature'lar kalsın
     feature_cols = [c for c in df_fe.columns if c != "TARGET"]
